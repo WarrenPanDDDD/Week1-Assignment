@@ -24,6 +24,7 @@ npm install
 
 ```
 cd app
+
 node read-btc-price.js 
 ```
 
