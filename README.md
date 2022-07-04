@@ -1,7 +1,7 @@
 # Week 1 Assignment
 
-assignment 1: To get latest BTC/USD price from Cronos Oracle. Plz check out app/read-btc-price.js
-<br />
+assignment 1: To get latest BTC/USD price from Cronos Oracle. Plz check out app/read-btc-price.js/
+
 assignment 2: To post weather data to smart contract. Plz check out app/post-weather-data.js
 <br />
 addtional task 1-2: Write in text, plz check out ./Assignment 1 additional
