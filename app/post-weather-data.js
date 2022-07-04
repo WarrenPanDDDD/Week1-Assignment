@@ -8,10 +8,11 @@ const wallet = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY, provider);
 const abi = [{"inputs":[{"internalType":"uint32","name":"batchId","type":"uint32"},{"internalType":"bytes32","name":"cityName","type":"bytes32"}],"name":"getWeather","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint32","name":"batchId","type":"uint32"},{"internalType":"bytes32","name":"cityName","type":"bytes32"},{"internalType":"uint32","name":"temperature","type":"uint32"}],"name":"reportWeather","outputs":[],"stateMutability":"nonpayable","type":"function"}]
 const weatherRecordContract = new ethers.Contract(process.env.WEATHER_RECORD_CONTRACT_ADDRESS, abi, wallet);
 
-// create batch Id
+// step 1: create batch Id
 let batchId = parseInt(new Date().getTime() / 1000)
+console.log("batchId: ", batchId)
 
-// get weathers for 3 cities
+// step 2.1: get weathers for 3 cities
 let cities = ["shanghai", "hongkong", "london"]
 let urlPrefix = 'https://goweather.herokuapp.com/weather/'
 let temperatures = []
@@ -20,17 +21,10 @@ for (let city of cities) {
     let data = await response.json();
     let temperature = data.temperature.trim();
 
-    // // accept decimal
-    // temperature = temperature.match(/\d|\./g).join('');
-    // result = result * parseFloat(temperature)
-
     temperatures.push(getTemperatureInInt(temperature))
 }
 
-// TODO: test data
-// let temperatures = [12, 32, 54]
-
-// construct transactions to report weather
+// step 2.2: construct transactions to report weather
 const GWEI = BigNumber.from(10).pow(9)
 const PRIORITY_FEE = GWEI.mul(8)
 let block = await provider.getBlock(await provider.getBlockNumber())
@@ -60,7 +54,7 @@ for (let index = 0; index < cities.length; index++) {
     console.log("constructed report weather tx, city: %s, temperature: %s", cities[index], temperature)
 }
 
-// send out the txs
+// step 2.3: send out the txs
 for (let index = 0; index < cities.length; index++) {
     await provider.sendTransaction(txs[index])
     console.log("sent tx: %s", txs[index])
@@ -69,17 +63,38 @@ for (let index = 0; index < cities.length; index++) {
 // sleep for 10s to ensure txs are patched on chain
 await new Promise(r => setTimeout(r, 10000));
 
-// read weather from contract
+// step 3: read weathers from contract
 for (let index = 0; index < cities.length; index++) {
     let cityName = ethers.utils.formatBytes32String(cities[index])
     let temperature = await weatherRecordContract.getWeather(batchId, cityName)
     console.log("get temperature, city: %s, temperature: %s", cities[index], temperature)
-    if (temperature != temperatures[index]) {
-        console.log("temperature unmatched! batchId: %s, offchain temperature: %s, onchain temperature: %s", batchId, temperatures[index], temperature)
-    } else {
-        console.log("temperature matched for city: %s", cities[index])
-    }
 }
+
+// step 3 additional: read weathers from contract in ONE call
+const multiCallAbi = [{"inputs":[{"components":[{"internalType":"address","name":"target","type":"address"},{"internalType":"bytes","name":"callData","type":"bytes"}],"internalType":"struct Multicall.Call[]","name":"calls","type":"tuple[]"}],"name":"aggregate","outputs":[{"internalType":"uint256","name":"blockNumber","type":"uint256"},{"internalType":"bytes[]","name":"returnData","type":"bytes[]"}],"stateMutability":"nonpayable","type":"function"}]
+const multiCallContract = new ethers.Contract(process.env.MULTI_CALL_CONTRACT_ADDRESS, multiCallAbi, wallet);
+let calls = []
+for (let index = 0; index < cities.length; index++) {
+    let cityName = ethers.utils.formatBytes32String(cities[index])
+    let data = weatherRecordContract.interface.encodeFunctionData('getWeather', [batchId, cityName])
+    let call = {
+        "target" : process.env.WEATHER_RECORD_CONTRACT_ADDRESS,
+        "callData" : data
+    }
+    calls.push(call)
+}
+let callData = multiCallContract.interface.encodeFunctionData('aggregate', [calls])
+let multiCallResultHexString = await provider.call({
+    to : process.env.MULTI_CALL_CONTRACT_ADDRESS,
+    data : callData
+})
+let multiCallResult = multiCallContract.interface.decodeFunctionResult("aggregate", multiCallResultHexString)
+for (let index = 0; index < cities.length; index++) {
+    let weatherRecordCallResultHexString = multiCallResult.returnData[index]
+    let temperature = weatherRecordContract.interface.decodeFunctionResult("getWeather", weatherRecordCallResultHexString)[0]
+    console.log("get temperature, city: %s, temperature: %s", cities[index], temperature)
+}
+
 
 // return temperature in Int
 function getTemperatureInInt(tempString) {
