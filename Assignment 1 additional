@@ -1,0 +1,11 @@
+Question 1:
+If temperature is decimal, we can treat it as Ether. Instead of sending '27.5' to smart contract(of course we can't), we can treat it as 27.5 ether or 27.5 Gwei or something else. Giving the 'temperature' param of reportWeather() method is type of uint32, we can't treat temperature as ether because it is out of bounds. The max value of a uint32 is 4,294,967,295, assuming temp max value is 100, it will be best if we treat temp as Mwei, which is equals to 1e6 Wei. So temperature 27.5 becomes 27.5 * 1e6 = 27,500,000. This gives a temprature value 6 digits of decimal, which should be enough for us. When reading data from contract, we should remember to div 1e6 to get the original value.
+
+Question 2:
+We can use the typical ways to handle negative numbers in binary: signed magnitude, ones complement, twos complement. Personally I prefer signed magnitude or twos complement.
+1) signed magnitude:
+We use the first bit of uint32 to represent positive(0) or nagative(1). So if the temperature is -27, to represent it with signed magnitude in uint32 binary, -27 = 10000000000000000000000000011011, convert it back to decimal it should be 2147483675. When reading temperature, we should get the first bit as sign, and the rest bits as bumber.
+2) twos complement:
+This should be the most common way to represent negative number in binary. The twos component of 27 is 0000000000011011, the twos component of -27 is 1111111111100101. When reading temperature, we can easily convert it back from twos complement to decimal.
+
+ 
