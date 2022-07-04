@@ -14,7 +14,7 @@ assignment 1: Get latest BTC/USD price from Cronos Oracle, log out in console ev
 
 assignment 2: Get weather data for cities from https://goweather.herokuapp.com/weather/, then post the temperatures to smart contract WeatherRecord. I manage nonces manually to avoid nonce conflicts when sending multiple txs at the same time
 
-addtional task 3: I deployed a MultiCall contract at 0x170832DF067101a2Cc2f273a75fbff34EbbD712E
+addtional task 3: I deployed a MultiCall contract at 0x170832DF067101a2Cc2f273a75fbff34EbbD712E, use this contract to relay my calls to WeatherRecord contract
 
 ## Getting Started
 
